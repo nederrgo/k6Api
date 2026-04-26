@@ -11,12 +11,16 @@ exports.K6ActivationService = void 0;
 const common_1 = require("@nestjs/common");
 const child_process_1 = require("child_process");
 const path_1 = require("path");
+const fs_1 = require("fs");
+const path_2 = require("path");
+const os_1 = require("os");
 let K6ActivationService = K6ActivationService_1 = class K6ActivationService {
     constructor() {
         this.logger = new common_1.Logger(K6ActivationService_1.name);
     }
     async executeTest(testRun) {
         const scriptPath = (0, path_1.resolve)(process.cwd(), 'scripts', 'generic.js');
+        const summaryPath = (0, path_2.join)((0, os_1.tmpdir)(), `k6-summary-${Date.now()}.json`);
         const isWindows = process.platform === 'win32';
         const k6Env = {
             ...process.env,
@@ -25,7 +29,7 @@ let K6ActivationService = K6ActivationService_1 = class K6ActivationService {
             REQUEST_CONFIG: JSON.stringify(testRun.requestConfig || { method: 'GET' }),
         };
         return new Promise((resolveExecution) => {
-            const k6 = (0, child_process_1.spawn)('k6', ['run', scriptPath], {
+            const k6 = (0, child_process_1.spawn)('k6', ['run', '--summary-export', summaryPath, scriptPath], {
                 shell: isWindows,
                 env: k6Env,
             });
@@ -35,7 +39,15 @@ let K6ActivationService = K6ActivationService_1 = class K6ActivationService {
             });
             k6.stderr.on('data', (data) => this.logger.warn(data.toString()));
             k6.on('close', (code) => {
-                resolveExecution({ exitCode: code, output });
+                let jsonOutput = output;
+                try {
+                    jsonOutput = (0, fs_1.readFileSync)(summaryPath, 'utf-8');
+                    (0, fs_1.unlinkSync)(summaryPath);
+                }
+                catch (error) {
+                    this.logger.warn(`Could not read summary JSON file: ${String(error)}`);
+                }
+                resolveExecution({ exitCode: code, output: jsonOutput });
             });
         });
     }
