@@ -15,12 +15,13 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.K6Controller = void 0;
 const common_1 = require("@nestjs/common");
 const k6_service_1 = require("./k6.service");
+const run_test_dto_1 = require("./dto/run-test.dto");
 let K6Controller = class K6Controller {
     constructor(k6Service) {
         this.k6Service = k6Service;
     }
     async trigger(body) {
-        return this.k6Service.runTest(body.service, body.type);
+        return this.k6Service.runTest(body);
     }
     async getHistory() {
         return this.k6Service.getAllTests();
@@ -31,7 +32,7 @@ __decorate([
     (0, common_1.Post)('run'),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [run_test_dto_1.RunTestDto]),
     __metadata("design:returntype", Promise)
 ], K6Controller.prototype, "trigger", null);
 __decorate([

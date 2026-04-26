@@ -12,13 +12,15 @@ const k6_service_1 = require("./k6.service");
 const k6_controller_1 = require("./k6.controller");
 const mongoose_1 = require("@nestjs/mongoose");
 const test_run_schema_1 = require("./schemas/test-run.schema");
+const k6_mongo_service_1 = require("./k6.mongo.service");
+const k6_activation_service_1 = require("./k6-activation.service");
 let K6Module = class K6Module {
 };
 exports.K6Module = K6Module;
 exports.K6Module = K6Module = __decorate([
     (0, common_1.Module)({
         imports: [mongoose_1.MongooseModule.forFeature([{ name: test_run_schema_1.TestRun.name, schema: test_run_schema_1.TestRunSchema }])],
-        providers: [k6_service_1.K6Service],
+        providers: [k6_service_1.K6Service, k6_mongo_service_1.K6MongoService, k6_activation_service_1.K6ActivationService],
         controllers: [k6_controller_1.K6Controller],
     })
 ], K6Module);

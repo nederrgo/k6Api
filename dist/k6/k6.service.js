@@ -8,35 +8,38 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
-var __param = (this && this.__param) || function (paramIndex, decorator) {
-    return function (target, key) { decorator(target, key, paramIndex); }
-};
 var K6Service_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.K6Service = void 0;
 const common_1 = require("@nestjs/common");
-const mongoose_1 = require("@nestjs/mongoose");
-const mongoose_2 = require("mongoose");
-const test_run_schema_1 = require("./schemas/test-run.schema");
-const child_process_1 = require("child_process");
-const path_1 = require("path");
 const config_1 = require("@nestjs/config");
+const k6_mongo_service_1 = require("./k6.mongo.service");
+const k6_activation_service_1 = require("./k6-activation.service");
 let K6Service = K6Service_1 = class K6Service {
-    constructor(testRunModel, configService) {
-        this.testRunModel = testRunModel;
+    constructor(configService, k6MongoService, k6ActivationService) {
         this.configService = configService;
+        this.k6MongoService = k6MongoService;
+        this.k6ActivationService = k6ActivationService;
         this.logger = new common_1.Logger(K6Service_1.name);
         this.isProcessing = false;
     }
-    async runTest(serviceName, testType) {
+    async runTest(runTestDto) {
         const k6Configs = this.configService.get('k6');
-        const testLoad = k6Configs?.[serviceName]?.[testType];
-        const newTest = await this.testRunModel.create({
-            serviceName,
-            testType,
-            loadConfig: testLoad,
-            status: 'PENDING',
-        });
+        const testDefaults = k6Configs?.[runTestDto.service]?.[runTestDto.testType];
+        if (!testDefaults) {
+            throw new common_1.BadRequestException(`No test defaults found for service "${runTestDto.service}" and test type "${runTestDto.testType}"`);
+        }
+        const testLoad = { ...testDefaults.load, ...(runTestDto.load ?? {}) };
+        const targetUrl = runTestDto.url ?? testDefaults.url;
+        if (!targetUrl) {
+            throw new common_1.BadRequestException('URL is required either in request payload or load-config.json defaults');
+        }
+        const requestConfig = {
+            method: runTestDto.method ?? testDefaults.request?.method ?? 'GET',
+            headers: { ...(testDefaults.request?.headers ?? {}), ...(runTestDto.headers ?? {}) },
+            body: runTestDto.body ?? testDefaults.request?.body,
+        };
+        const newTest = await this.k6MongoService.createPendingTest(runTestDto.service, runTestDto.testType, testLoad, targetUrl, requestConfig);
         this.logger.log(`Test queued: ${newTest.id}`);
         this.processQueue();
         return { message: 'Test added to queue', testId: newTest.id };
@@ -44,12 +47,12 @@ let K6Service = K6Service_1 = class K6Service {
     async processQueue() {
         if (this.isProcessing)
             return;
-        const activeTest = await this.testRunModel.findOne({ status: 'RUNNING' });
+        const activeTest = await this.k6MongoService.findRunningTest();
         if (activeTest) {
             this.isProcessing = true;
             return;
         }
-        const nextTest = await this.testRunModel.findOne({ status: 'PENDING' }).sort({ createdAt: 1 });
+        const nextTest = await this.k6MongoService.findNextPendingTest();
         if (!nextTest) {
             this.isProcessing = false;
             this.logger.log('Queue empty.');
@@ -59,43 +62,26 @@ let K6Service = K6Service_1 = class K6Service {
         await this.executeK6(nextTest);
     }
     async executeK6(testDoc) {
-        const scriptPath = (0, path_1.resolve)(process.cwd(), 'scripts', testDoc.serviceName, `${testDoc.testType}.js`);
-        testDoc.status = 'RUNNING';
-        await testDoc.save();
-        const isWindows = process.platform === 'win32';
-        const k6Env = {
-            ...process.env,
-            LOAD_CONFIG: JSON.stringify(testDoc.loadConfig),
-        };
-        const k6 = (0, child_process_1.spawn)('k6', ['run', scriptPath], {
-            shell: isWindows,
-            env: k6Env,
-        });
-        let output = '';
-        k6.stdout.on('data', (data) => (output += data.toString()));
-        k6.stderr.on('data', (data) => this.logger.warn(data.toString()));
-        k6.on('close', async (code) => {
-            testDoc.status = code === 0 ? 'COMPLETED' : 'FAILED';
-            testDoc.output = output;
-            testDoc.finishedAt = new Date();
-            await testDoc.save();
-            this.isProcessing = false;
-            this.processQueue();
-        });
+        await this.k6MongoService.updateStatus(testDoc, 'RUNNING');
+        const result = await this.k6ActivationService.executeTest(testDoc);
+        const finalStatus = result.exitCode === 0 ? 'COMPLETED' : 'FAILED';
+        await this.k6MongoService.completeTest(testDoc, finalStatus, result.output);
+        this.isProcessing = false;
+        await this.processQueue();
     }
     async onModuleInit() {
-        await this.testRunModel.updateMany({ status: 'RUNNING' }, { status: 'PENDING' });
-        this.processQueue();
+        await this.k6MongoService.resetRunningTestsToPending();
+        await this.processQueue();
     }
     async getAllTests() {
-        return this.testRunModel.find().sort({ createdAt: -1 }).limit(20);
+        return this.k6MongoService.getRecentTests();
     }
 };
 exports.K6Service = K6Service;
 exports.K6Service = K6Service = K6Service_1 = __decorate([
     (0, common_1.Injectable)(),
-    __param(0, (0, mongoose_1.InjectModel)(test_run_schema_1.TestRun.name)),
-    __metadata("design:paramtypes", [mongoose_2.Model,
-        config_1.ConfigService])
+    __metadata("design:paramtypes", [config_1.ConfigService,
+        k6_mongo_service_1.K6MongoService,
+        k6_activation_service_1.K6ActivationService])
 ], K6Service);
 //# sourceMappingURL=k6.service.js.map

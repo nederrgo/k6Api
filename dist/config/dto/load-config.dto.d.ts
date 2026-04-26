@@ -7,7 +7,21 @@ export declare class LoadProfile {
     duration?: string;
     stages?: K6Stage[];
 }
+export declare class RequestDefaults {
+    method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+    headers?: Record<string, string>;
+    body?: unknown;
+}
+export declare class TestDefaults {
+    url: string;
+    request: RequestDefaults;
+    load: LoadProfile;
+}
 export declare class ServiceConfig {
-    smoke: LoadProfile;
-    spike: LoadProfile;
+    smoke?: TestDefaults;
+    spike?: TestDefaults;
+    soak?: TestDefaults;
+    stress?: TestDefaults;
+    load?: TestDefaults;
+    breakpoint?: TestDefaults;
 }

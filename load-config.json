@@ -1,6 +1,25 @@
 {
   "service-a": {
-    "smoke": { "vus": 1, "duration": "10s" },
-    "spike": { "stages": [ { "duration": "10s", "target": 10 } ] }
+    "smoke": {
+      "url": "https://httpbin.org/anything",
+      "request": {
+        "method": "GET",
+        "headers": {
+          "Accept": "application/json"
+        }
+      },
+      "load": { "vus": 1, "duration": "10s" }
+    },
+    "spike": {
+      "url": "https://httpbin.org/anything",
+      "request": {
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": { "source": "default-config" }
+      },
+      "load": { "stages": [ { "duration": "10s", "target": 10 } ] }
+    }
   }
 }

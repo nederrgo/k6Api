@@ -12,6 +12,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TestRunSchema = exports.TestRun = void 0;
 const mongoose_1 = require("@nestjs/mongoose");
 const mongoose_2 = require("mongoose");
+const test_status_1 = require("../../lib/test-status");
+const test_types_1 = require("../../lib/test-types");
 let TestRun = class TestRun extends mongoose_2.Document {
 };
 exports.TestRun = TestRun;
@@ -20,14 +22,14 @@ __decorate([
     __metadata("design:type", String)
 ], TestRun.prototype, "serviceName", void 0);
 __decorate([
-    (0, mongoose_1.Prop)({ required: true }),
+    (0, mongoose_1.Prop)({ required: true, enum: test_types_1.testTypes }),
     __metadata("design:type", String)
 ], TestRun.prototype, "testType", void 0);
 __decorate([
     (0, mongoose_1.Prop)({
         required: true,
-        enum: ['PENDING', 'RUNNING', 'COMPLETED', 'FAILED'],
-        default: 'PENDING',
+        enum: test_status_1.testStatuses,
+        default: test_status_1.testStatuses[0],
     }),
     __metadata("design:type", String)
 ], TestRun.prototype, "status", void 0);
@@ -35,6 +37,14 @@ __decorate([
     (0, mongoose_1.Prop)({ type: Object }),
     __metadata("design:type", Object)
 ], TestRun.prototype, "loadConfig", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ required: true }),
+    __metadata("design:type", String)
+], TestRun.prototype, "url", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ type: Object }),
+    __metadata("design:type", Object)
+], TestRun.prototype, "requestConfig", void 0);
 __decorate([
     (0, mongoose_1.Prop)(),
     __metadata("design:type", String)

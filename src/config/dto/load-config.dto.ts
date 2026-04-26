@@ -1,4 +1,4 @@
-import { IsNumber, IsString, IsArray, ValidateNested, IsOptional, Matches, IsDefined } from 'class-validator';
+import { IsNumber, IsString, IsArray, ValidateNested, IsOptional, Matches, IsObject, IsUrl } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class K6Stage {
@@ -23,10 +23,48 @@ export class LoadProfile {
   stages?: K6Stage[];
 }
 
-export class ServiceConfig {
-  @ValidateNested() @Type(() => LoadProfile) @IsDefined()
-  smoke: LoadProfile;
+export class RequestDefaults {
+  @IsOptional()
+  @IsString()
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
-  @ValidateNested() @Type(() => LoadProfile) @IsDefined()
-  spike: LoadProfile;
+  @IsOptional()
+  @IsObject()
+  headers?: Record<string, string>;
+
+  @IsOptional()
+  body?: unknown;
+}
+
+export class TestDefaults {
+  @IsUrl()
+  url: string;
+
+  @ValidateNested()
+  @Type(() => RequestDefaults)
+  request: RequestDefaults;
+
+  @ValidateNested()
+  @Type(() => LoadProfile)
+  load: LoadProfile;
+}
+
+export class ServiceConfig {
+  @ValidateNested() @Type(() => TestDefaults) @IsOptional()
+  smoke?: TestDefaults;
+
+  @ValidateNested() @Type(() => TestDefaults) @IsOptional()
+  spike?: TestDefaults;
+
+  @ValidateNested() @Type(() => TestDefaults) @IsOptional()
+  soak?: TestDefaults;
+
+  @ValidateNested() @Type(() => TestDefaults) @IsOptional()
+  stress?: TestDefaults;
+
+  @ValidateNested() @Type(() => TestDefaults) @IsOptional()
+  load?: TestDefaults;
+
+  @ValidateNested() @Type(() => TestDefaults) @IsOptional()
+  breakpoint?: TestDefaults;
 }

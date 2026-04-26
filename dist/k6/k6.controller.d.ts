@@ -1,11 +1,9 @@
 import { K6Service } from './k6.service';
+import { RunTestDto } from './dto/run-test.dto';
 export declare class K6Controller {
     private readonly k6Service;
     constructor(k6Service: K6Service);
-    trigger(body: {
-        service: string;
-        type: 'smoke' | 'spike';
-    }): Promise<{
+    trigger(body: RunTestDto): Promise<{
         message: string;
         testId: string;
     }>;

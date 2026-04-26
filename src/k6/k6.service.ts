@@ -1,55 +1,66 @@
 // src/k6/k6.service.ts
-import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { TestRun } from './schemas/test-run.schema';
-import { spawn } from 'child_process';
-import { resolve } from 'path';
+import { BadRequestException, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { K6MongoService } from './k6.mongo.service';
+import { K6ActivationService } from './k6-activation.service';
+import { TestRun } from './schemas/test-run.schema';
+import { RunTestDto } from './dto/run-test.dto';
 
 @Injectable()
-export class K6Service implements OnModuleInit{
+export class K6Service implements OnModuleInit {
   private readonly logger = new Logger(K6Service.name);
-  private isProcessing = false; // Internal lock
+  private isProcessing = false;
 
   constructor(
-    @InjectModel(TestRun.name) private testRunModel: Model<TestRun>,
     private configService: ConfigService,
+    private readonly k6MongoService: K6MongoService,
+    private readonly k6ActivationService: K6ActivationService,
   ) {}
 
-  async runTest(serviceName: string, testType: string) {
+  async runTest(runTestDto: RunTestDto) {
     const k6Configs = this.configService.get('k6');
-    const testLoad = k6Configs?.[serviceName]?.[testType];
+    const testDefaults = k6Configs?.[runTestDto.service]?.[runTestDto.testType];
+    if (!testDefaults) {
+      throw new BadRequestException(
+        `No test defaults found for service "${runTestDto.service}" and test type "${runTestDto.testType}"`,
+      );
+    }
+    const testLoad = { ...testDefaults.load, ...(runTestDto.load ?? {}) };
+    const targetUrl = runTestDto.url ?? testDefaults.url;
+    if (!targetUrl) {
+      throw new BadRequestException('URL is required either in request payload or load-config.json defaults');
+    }
+    const requestConfig = {
+      method: runTestDto.method ?? testDefaults.request?.method ?? 'GET',
+      headers: { ...(testDefaults.request?.headers ?? {}), ...(runTestDto.headers ?? {}) },
+      body: runTestDto.body ?? testDefaults.request?.body,
+    };
 
-    // 1. Always create as PENDING
-    const newTest = await this.testRunModel.create({
-      serviceName,
-      testType,
-      loadConfig: testLoad,
-      status: 'PENDING',
-    });
+    const newTest = await this.k6MongoService.createPendingTest(
+      runTestDto.service,
+      runTestDto.testType,
+      testLoad,
+      targetUrl,
+      requestConfig,
+    );
 
     this.logger.log(`Test queued: ${newTest.id}`);
 
-    // 2. Trigger queue processing (Fire and forget)
     this.processQueue();
 
     return { message: 'Test added to queue', testId: newTest.id };
   }
 
   private async processQueue() {
-    // If a test is already running, stop here.
     if (this.isProcessing) return;
 
-    // Check if any test is currently marked as RUNNING in DB (safety check)
-    const activeTest = await this.testRunModel.findOne({ status: 'RUNNING' });
+    const activeTest = await this.k6MongoService.findRunningTest();
     if (activeTest) {
       this.isProcessing = true;
       return;
     }
 
-    // Find the oldest PENDING test
-    const nextTest = await this.testRunModel.findOne({ status: 'PENDING' }).sort({ createdAt: 1 });
+    const nextTest = await this.k6MongoService.findNextPendingTest();
 
     if (!nextTest) {
       this.isProcessing = false;
@@ -57,51 +68,25 @@ export class K6Service implements OnModuleInit{
       return;
     }
 
-    // Start the test
     this.isProcessing = true;
     await this.executeK6(nextTest);
   }
 
-private async executeK6(testDoc: TestRun) {
-  const scriptPath = resolve(process.cwd(), 'scripts', testDoc.serviceName, `${testDoc.testType}.js`);
-  
-  testDoc.status = 'RUNNING';
-  await testDoc.save();
-
-  // 1. Detect if we are on Windows
-  const isWindows = process.platform === 'win32';
-
-  // 2. Spread the existing process environment and add our custom variable
-  // This avoids the "Shell Quote Escaping" nightmare on Windows
-  const k6Env = {
-    ...process.env,
-    LOAD_CONFIG: JSON.stringify(testDoc.loadConfig),
-  };
-
-  const k6 = spawn('k6', ['run', scriptPath], {
-    shell: isWindows, // Windows needs shell: true to find the k6.exe
-    env: k6Env,       // Pass the config safely via the environment object
-  });
-
-  let output = '';
-  k6.stdout.on('data', (data) => (output += data.toString()));
-  k6.stderr.on('data', (data) => this.logger.warn(data.toString()));
-
-  k6.on('close', async (code) => {
-    testDoc.status = code === 0 ? 'COMPLETED' : 'FAILED';
-    testDoc.output = output;
-    testDoc.finishedAt = new Date();
-    await testDoc.save();
-
+  private async executeK6(testDoc: TestRun) {
+    await this.k6MongoService.updateStatus(testDoc, 'RUNNING');
+    const result = await this.k6ActivationService.executeTest(testDoc);
+    const finalStatus = result.exitCode === 0 ? 'COMPLETED' : 'FAILED';
+    await this.k6MongoService.completeTest(testDoc, finalStatus, result.output);
     this.isProcessing = false;
-    this.processQueue();
-    });
- }
-  async onModuleInit() {
-    await this.testRunModel.updateMany({ status: 'RUNNING' }, { status: 'PENDING' });
-    this.processQueue();
+    await this.processQueue();
   }
+
+  async onModuleInit() {
+    await this.k6MongoService.resetRunningTestsToPending();
+    await this.processQueue();
+  }
+
   async getAllTests() {
-    return this.testRunModel.find().sort({ createdAt: -1 }).limit(20);
+    return this.k6MongoService.getRecentTests();
   }
 }

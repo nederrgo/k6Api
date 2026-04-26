@@ -1,23 +1,31 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
+import { testStatuses, TestStatus } from 'src/lib/test-status';
+import { testTypes, TestType } from 'src/lib/test-types';
 
 @Schema({ timestamps: true })
 export class TestRun extends Document {
   @Prop({ required: true })
   serviceName: string;
 
-  @Prop({ required: true })
-  testType: string;
+  @Prop({ required: true, enum: testTypes })
+  testType: TestType;
 
   @Prop({
     required: true,
-    enum: ['PENDING', 'RUNNING', 'COMPLETED', 'FAILED'],
-    default: 'PENDING',
+    enum: testStatuses,
+    default: testStatuses[0],
   })
-  status: string;
+  status: TestStatus;
 
   @Prop({ type: Object })
   loadConfig: any;
+
+  @Prop({ required: true })
+  url: string;
+
+  @Prop({ type: Object })
+  requestConfig: any;
 
   @Prop()
   output: string;
