@@ -1,0 +1,6 @@
+{
+  "service-a": {
+    "smoke": { "vus": 1, "duration": "10s" },
+    "spike": { "stages": [ { "duration": "10s", "target": 10 } ] }
+  }
+}
