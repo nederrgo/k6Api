@@ -8,7 +8,7 @@ export declare class TestRun extends Document {
     loadConfig: any;
     url: string;
     requestConfig: any;
-    output: string;
+    output: any;
     error: string;
     finishedAt: Date;
 }
@@ -21,7 +21,7 @@ export declare const TestRunSchema: import("mongoose").Schema<TestRun, import("m
 }, "id"> & {
     id: string;
 }, {
-    url?: import("mongoose").SchemaDefinitionProperty<string, TestRun, Document<unknown, {}, TestRun, {
+    _id?: import("mongoose").SchemaDefinitionProperty<import("mongoose").Types.ObjectId, TestRun, Document<unknown, {}, TestRun, {
         id: string;
     }, import("mongoose").DefaultSchemaOptions> & Omit<TestRun & Required<{
         _id: import("mongoose").Types.ObjectId;
@@ -39,16 +39,7 @@ export declare const TestRunSchema: import("mongoose").Schema<TestRun, import("m
     }, "id"> & {
         id: string;
     }>;
-    _id?: import("mongoose").SchemaDefinitionProperty<import("mongoose").Types.ObjectId, TestRun, Document<unknown, {}, TestRun, {
-        id: string;
-    }, import("mongoose").DefaultSchemaOptions> & Omit<TestRun & Required<{
-        _id: import("mongoose").Types.ObjectId;
-    }> & {
-        __v: number;
-    }, "id"> & {
-        id: string;
-    }>;
-    testType?: import("mongoose").SchemaDefinitionProperty<"load" | "smoke" | "spike" | "soak" | "stress" | "breakpoint", TestRun, Document<unknown, {}, TestRun, {
+    testType?: import("mongoose").SchemaDefinitionProperty<"smoke" | "spike" | "soak" | "stress" | "load" | "breakpoint", TestRun, Document<unknown, {}, TestRun, {
         id: string;
     }, import("mongoose").DefaultSchemaOptions> & Omit<TestRun & Required<{
         _id: import("mongoose").Types.ObjectId;
@@ -75,6 +66,15 @@ export declare const TestRunSchema: import("mongoose").Schema<TestRun, import("m
     }, "id"> & {
         id: string;
     }>;
+    url?: import("mongoose").SchemaDefinitionProperty<string, TestRun, Document<unknown, {}, TestRun, {
+        id: string;
+    }, import("mongoose").DefaultSchemaOptions> & Omit<TestRun & Required<{
+        _id: import("mongoose").Types.ObjectId;
+    }> & {
+        __v: number;
+    }, "id"> & {
+        id: string;
+    }>;
     requestConfig?: import("mongoose").SchemaDefinitionProperty<any, TestRun, Document<unknown, {}, TestRun, {
         id: string;
     }, import("mongoose").DefaultSchemaOptions> & Omit<TestRun & Required<{
@@ -84,7 +84,7 @@ export declare const TestRunSchema: import("mongoose").Schema<TestRun, import("m
     }, "id"> & {
         id: string;
     }>;
-    output?: import("mongoose").SchemaDefinitionProperty<string, TestRun, Document<unknown, {}, TestRun, {
+    output?: import("mongoose").SchemaDefinitionProperty<any, TestRun, Document<unknown, {}, TestRun, {
         id: string;
     }, import("mongoose").DefaultSchemaOptions> & Omit<TestRun & Required<{
         _id: import("mongoose").Types.ObjectId;

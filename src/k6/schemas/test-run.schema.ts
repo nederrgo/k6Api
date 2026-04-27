@@ -27,8 +27,8 @@ export class TestRun extends Document {
   @Prop({ type: Object })
   requestConfig: any;
 
-  @Prop()
-  output: string;
+  @Prop({ type: Object })
+  output: any;
 
   @Prop()
   error: string;

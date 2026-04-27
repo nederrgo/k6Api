@@ -46,8 +46,8 @@ __decorate([
     __metadata("design:type", Object)
 ], TestRun.prototype, "requestConfig", void 0);
 __decorate([
-    (0, mongoose_1.Prop)(),
-    __metadata("design:type", String)
+    (0, mongoose_1.Prop)({ type: Object }),
+    __metadata("design:type", Object)
 ], TestRun.prototype, "output", void 0);
 __decorate([
     (0, mongoose_1.Prop)(),

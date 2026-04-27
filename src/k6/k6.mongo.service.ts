@@ -39,7 +39,7 @@ export class K6MongoService {
 
   async completeTest(testRun: TestRun, status: TestStatus, output: string) {
     testRun.status = status;
-    testRun.output = output;
+    testRun.output = JSON.parse(output);
     testRun.finishedAt = new Date();
     await testRun.save();
   }
